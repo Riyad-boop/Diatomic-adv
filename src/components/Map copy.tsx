@@ -3,12 +3,10 @@ import mapboxgl, { Map, LngLatLike} from 'mapbox-gl';
 import * as turf from '@turf/turf';
 import { Feature, FeatureCollection } from 'geojson';
 import addDeliveryWaypoint from './AddDestination';
-import Delivery from '../types/Order';
 
 mapboxgl.accessToken = 'pk.eyJ1Ijoicml5YWQtayIsImEiOiJja3cwdHNkaGkweXRoMm9udGUwNTN6aHc3In0.z-H0YXy5-vtH0AdTCyPsLQ';
 
 const MapComponent: React.FC = () => {
-  
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<Map | null>(null);
   const [routeGeoJSON, setRouteGeoJSON] = useState<FeatureCollection | null>(null);
@@ -16,9 +14,9 @@ const MapComponent: React.FC = () => {
   const [distanceTraveled, setDistanceTraveled] = useState(0);
 
 
-  useEffect(() => {
-    const truckLocation: LngLatLike = [-1.9109365,52.504115];
-    const warehouseLocation: LngLatLike = [-1.9109365,52.504115];
+  useEffect(() => { 
+    const truckLocation: LngLatLike = [-1.836727,52.423809];
+    const warehouseLocation: LngLatLike = [-1.836727,52.423809];
     
     if (mapContainer.current) {
       mapInstance.current = new mapboxgl.Map({
@@ -29,23 +27,6 @@ const MapComponent: React.FC = () => {
       });
 
       mapInstance.current.on('load', async () => {
-        const delivery_json = await fetch(`${process.env.PUBLIC_URL}/deliveries.json`).then(r => r.json())
-        // Add all the delivery points to the map
-        for (const element of delivery_json.deliveries) {
-          const { name, address, location, packages } = element;
-          const delivery = new Delivery(name, address, location, packages);
-          const markerElement = document.createElement('div'); // Create a new marker element
-          markerElement.className = 'w-5 h-5 border-2 border-white rounded-full bg-red-600 pointer-events-none'; // Add a 'marker' class to the marker element
-          new mapboxgl.Marker(markerElement) // Create a new marker
-            .setLngLat([delivery.location[0], delivery.location[1]]) // Set the marker's position
-            .addTo(mapInstance.current!); // Add the marker to the map
-
-          // Create a new popup
-          const popup = new mapboxgl.Popup({
-            offset: 25,
-          }).setText(delivery.name); // Set the popup's text to the delivery point's name
-        }
-
         // Add truck marker
         const marker = document.createElement('div');
         marker.className =
@@ -227,7 +208,7 @@ const MapComponent: React.FC = () => {
       <div ref={mapContainer} className="absolute inset-0"></div>
       <button
         onClick={moveTruck}
-        className="absolute top-4 right-6 bg-blue-600 text-white px-4 py-2 rounded"
+        className="absolute top-4 left-4 bg-blue-600 text-white px-4 py-2 rounded"
       >
         Move Truck
       </button>

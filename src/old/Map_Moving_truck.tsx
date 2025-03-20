@@ -1,24 +1,63 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl, { Map, LngLatLike} from 'mapbox-gl';
 import * as turf from '@turf/turf';
-import { Feature, FeatureCollection } from 'geojson';
-import addDeliveryWaypoint from './AddDestination';
-import Delivery from '../types/Order';
+import { Feature, FeatureCollection,Geometry, GeoJsonProperties } from 'geojson';
+import addDeliveryWaypoint from '../components/AddDestination';
 
 mapboxgl.accessToken = 'pk.eyJ1Ijoicml5YWQtayIsImEiOiJja3cwdHNkaGkweXRoMm9udGUwNTN6aHc3In0.z-H0YXy5-vtH0AdTCyPsLQ';
 
 const MapComponent: React.FC = () => {
-  
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<Map | null>(null);
-  const [routeGeoJSON, setRouteGeoJSON] = useState<FeatureCollection | null>(null);
-  const [truckMarker, setTruckMarker] = useState<mapboxgl.Marker | null>(null);
-  const [distanceTraveled, setDistanceTraveled] = useState(0);
 
+  const truckMarker = useRef<mapboxgl.Marker | null>(null);
+  const [distanceTraveled, setDistanceTraveled] = useState(0); // Track distance traveled
+  const routeGeoJSON = useRef<FeatureCollection<any> | null>(null); // Store the route
+  const [deliveryPoints, setDeliveryPoints] = useState<FeatureCollection<Geometry, GeoJsonProperties>>(turf.featureCollection([])); // Create an empty GeoJSON feature collection for drop-off locations
 
-  useEffect(() => {
-    const truckLocation: LngLatLike = [-1.9109365,52.504115];
-    const warehouseLocation: LngLatLike = [-1.9109365,52.504115];
+  
+  const moveTruck = () => {
+    console.log(deliveryPoints.features); // Accessing features of the GeoJSON feature collection
+    if (!deliveryPoints.features.length || !truckMarker.current) return;
+  
+    // Generate a LineString from the deliveryPoints
+    const coordinates = deliveryPoints.features.map((feature) => {
+      if (feature.geometry && feature.geometry.type === 'Point') {
+        return feature.geometry.coordinates;
+      }
+      return null;
+    }).filter((coord) => coord !== null) as [number, number][];
+  
+    if (coordinates.length < 2) {
+      console.log('Not enough waypoints to create a route');
+      return;
+    }
+  
+    const line = turf.lineString(coordinates); // Create a LineString from the waypoints
+    const routeLength = turf.length(line); // Get the total length of the route in kilometers
+  
+    // Calculate the new distance traveled
+    const newDistance = distanceTraveled + 0.1; // Move 0.1 km (100 meters) per click
+    if (newDistance > routeLength) {
+      console.log('Truck has reached the end of the route');
+      return;
+    }
+  
+    // Get the new position along the route
+    const newPosition = turf.along(line, newDistance);
+  
+    // Update the truck marker position
+    const [lng, lat] = newPosition.geometry.coordinates;
+    truckMarker.current.setLngLat([lng, lat]);
+  
+    // Update the distance traveled
+    setDistanceTraveled(newDistance);
+    console.log(`Truck moved to: ${lng}, ${lat}`);
+  };
+
+  useEffect(() => { 
+    const truckLocation: LngLatLike = [-1.836727,52.423809];
+    const warehouseLocation: LngLatLike = [-1.836727,52.423809];
     
     if (mapContainer.current) {
       mapInstance.current = new mapboxgl.Map({
@@ -29,29 +68,16 @@ const MapComponent: React.FC = () => {
       });
 
       mapInstance.current.on('load', async () => {
-        const delivery_json = await fetch(`${process.env.PUBLIC_URL}/deliveries.json`).then(r => r.json())
-        // Add all the delivery points to the map
-        for (const element of delivery_json.deliveries) {
-          const { name, address, location, packages } = element;
-          const delivery = new Delivery(name, address, location, packages);
-          const markerElement = document.createElement('div'); // Create a new marker element
-          markerElement.className = 'w-5 h-5 border-2 border-white rounded-full bg-red-600 pointer-events-none'; // Add a 'marker' class to the marker element
-          new mapboxgl.Marker(markerElement) // Create a new marker
-            .setLngLat([delivery.location[0], delivery.location[1]]) // Set the marker's position
-            .addTo(mapInstance.current!); // Add the marker to the map
-
-          // Create a new popup
-          const popup = new mapboxgl.Popup({
-            offset: 25,
-          }).setText(delivery.name); // Set the popup's text to the delivery point's name
-        }
-
         // Add truck marker
         const marker = document.createElement('div');
         marker.className =
           'w-5 h-5 border-2 border-white rounded-full bg-blue-600 pointer-events-none';
 
-        setTruckMarker(new mapboxgl.Marker(marker).setLngLat(truckLocation).addTo(mapInstance.current!));
+        // new mapboxgl.Marker(marker).setLngLat(truckLocation).addTo(mapInstance.current!);
+        truckMarker.current = new mapboxgl.Marker(marker)
+        .setLngLat(truckLocation)
+        .addTo(mapInstance.current!);
+
 
          // Add a circle layer for the warehouse
          mapInstance.current!.addLayer({
@@ -145,12 +171,9 @@ const MapComponent: React.FC = () => {
         });
       });
     }
-
-
+  
     // Create a GeoJSON feature collection for the warehouse
     const warehouse = turf.featureCollection([turf.point(warehouseLocation)]);
-    // Create an empty GeoJSON feature collection for drop-off locations
-    const deliveryPoints = turf.featureCollection([]);
     // Create an empty GeoJSON feature collection, which will be used as the data source for the route before users add any new data
     const emptyFeatureCollection = turf.featureCollection([]);
     // Initialize pointHopper as an empty object
@@ -166,26 +189,9 @@ const MapComponent: React.FC = () => {
     async function addWaypoints(event: mapboxgl.MapMouseEvent) {
       // When the map is clicked, add a new drop off point
       // and update the `dropoffs-symbol` layer
-      await addDeliveryWaypoint(event.lngLat, deliveryPoints, waypointRegistry, truckLocation, warehouseLocation, mapInstance)
-      .then((response) => {
-        if (response) {
-          // Create a GeoJSON feature collection
-          const routeGeoJSON = turf.featureCollection([
-            turf.feature(response.trips[0].geometry)
-          ])
-          // Update the `route` source by getting the route source
-          // and setting the data equal to routeGeoJSON
-          const routeSource = mapInstance.current!.getSource('route');
-          if (routeSource && routeGeoJSON) {
-            setRouteGeoJSON(routeGeoJSON);
-            
-            if (routeGeoJSON) {
-              (routeSource as mapboxgl.GeoJSONSource).setData(routeGeoJSON);
-            }
-          }
-          updateDropoffs(deliveryPoints);
-        }
-      });
+      await addDeliveryWaypoint( event.lngLat, deliveryPoints, waypointRegistry, truckLocation, warehouseLocation, mapInstance);
+      updateDropoffs(deliveryPoints);
+      setDeliveryPoints(deliveryPoints);
     }
 
     return () => {
@@ -195,39 +201,13 @@ const MapComponent: React.FC = () => {
     };
   }, []);
 
-
-    // Function to move the truck along the route
-    const moveTruck = () => {
-
-    if (!routeGeoJSON || !truckMarker) return;
-
-    const line = routeGeoJSON.features[0] as any;
-    const routeLength = turf.length(line); // Get the total length of the route in kilometers
-
-    // Calculate the new distance traveled
-    const newDistance = distanceTraveled + 0.1; // Move 0.1 km (100 meters) per click
-    if (newDistance > routeLength) {
-      console.log('Truck has reached the end of the route');
-      return;
-    }
-
-    // Get the new position along the route
-    const newPosition = turf.along(line, newDistance);
-
-    // Update the truck marker position
-    const [lng, lat] = newPosition.geometry.coordinates;
-    truckMarker.setLngLat([lng, lat]);
-
-    // Update the distance traveled
-    setDistanceTraveled(newDistance);
-  };
-  
+  // return <div ref={mapContainer} className="absolute inset-0"></div>;
   return (
     <div>
       <div ref={mapContainer} className="absolute inset-0"></div>
       <button
-        onClick={moveTruck}
-        className="absolute top-4 right-6 bg-blue-600 text-white px-4 py-2 rounded"
+        onClick={() => {moveTruck();   console.log(deliveryPoints.features);}}
+        className="absolute top-4 left-4 bg-blue-600 text-white px-4 py-2 rounded"
       >
         Move Truck
       </button>
