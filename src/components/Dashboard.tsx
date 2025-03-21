@@ -122,7 +122,14 @@ export default function Dashboard() {
                     id={`order-${index}`}
                     onChange={(e) => {
                         if (e.target.checked) {
-                            setSelectedOrders([...selectedOrders, order]);
+                            // Add the order to the selectedOrders array if the checkbox is checked and the size is less than 10
+                            if (selectedOrders.length < 10){
+                                setSelectedOrders([...selectedOrders, order]);
+                            }
+                            else{
+                                alert("You can only select up to 10 orders");
+                                e.target.checked = false;
+                            }
                         } else {
                             // Remove the order from the selectedOrders array if the checkbox is unchecked
                             // Return a new array rather than modifying the original selectedOrders array.
