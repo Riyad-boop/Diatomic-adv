@@ -3,16 +3,22 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as turf from '@turf/turf';
 import Order from '../types/Order';
 
-export default function Dashboard() {
+
+interface DasboardProps {
+    selectedOrders: Order[];
+    setSelectedOrders: React.Dispatch<React.SetStateAction<Order[]>>
+    setConfirmRoute: React.Dispatch<React.SetStateAction<boolean>>
+  }
+
+export default function Dashboard({ selectedOrders, setSelectedOrders, setConfirmRoute}: DasboardProps) {
     const warehouseLocation:[number, number]= [-1.9109365,52.504115];
     const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
-    const [selectedOrders, setSelectedOrders] = useState<Order[]>([]);
     const [totalDistance, setTotalDistance] = useState<number>(0);
     const [totalWeight, setTotalWeight] = useState<number>(0);
 
     useEffect(() => {
         const fetchDeliveries = async () => {
-            const data = await fetch(`${process.env.PUBLIC_URL}/deliveries.json`).then(r => r.json());
+            const data = await fetch(`${process.env.PUBLIC_URL}/orders.json`).then(r => r.json());
             const transformedOrders = data.deliveries.map((element: any) => {
                 const { name, address, location, packages } = element;
                 let order = new Order(name, address, location, packages);
@@ -32,7 +38,12 @@ export default function Dashboard() {
     useEffect(() => {
         computeDistanceEstimate();
         computeTotalDeliveryWeight();
+        // plot points on the map
+        plotPoints();
     }, [selectedOrders]);
+
+    // Plot points on the map
+    function plotPoints() {}
 
 
     function computeTotalDeliveryWeight() {
@@ -107,7 +118,7 @@ export default function Dashboard() {
         </p>
 
         <button
-            onClick={() => console.log("clicked")}
+            onClick={() => setConfirmRoute(true)}
             className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
         >
             Confirm Route & Select ADV
