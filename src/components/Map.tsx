@@ -3,112 +3,46 @@ import mapboxgl, { Map, LngLatLike} from 'mapbox-gl';
 import * as turf from '@turf/turf';
 import { Feature, FeatureCollection } from 'geojson';
 import addDeliveryWaypoint from './AddDestination';
-import Delivery from '../types/Order';
 import Order from '../types/Order';
+import Warehouse from '../types/Warehouse';
+
 
 mapboxgl.accessToken = 'pk.eyJ1Ijoicml5YWQtayIsImEiOiJja3cwdHNkaGkweXRoMm9udGUwNTN6aHc3In0.z-H0YXy5-vtH0AdTCyPsLQ';
 
-
 interface MapComponentProps {
-  mapContainer: React.RefObject<HTMLDivElement | null>;
-  truckLocation: LngLatLike;
-  warehouseLocation: LngLatLike;
+  Warehouses: Warehouse[];
+  selectedWarehouse: Warehouse;
+  setSelectedWarehouse: React.Dispatch<React.SetStateAction<Warehouse>>;
 }
 
-const MapComponent = forwardRef(({ mapContainer, truckLocation, warehouseLocation }: MapComponentProps, ref) => {
-  
-  // const mapContainer = useRef<HTMLDivElement | null>(null);
-  const mapInstance = useRef<Map | null>(null);
-  const [routeGeoJSON, setRouteGeoJSON] = useState<FeatureCollection | null>(null);
-  const [truckMarker, setTruckMarker] = useState<mapboxgl.Marker | null>(null);
-  const [distanceTraveled, setDistanceTraveled] = useState(0);
-
-  useImperativeHandle(ref, () => ({
-    addRoutes,
-  }));
-
-
-  function updateDropoffs(geojson: FeatureCollection) {
-    const source = mapInstance.current!.getSource('dropoffs-symbol');
-    if (source) {
-      (source as mapboxgl.GeoJSONSource).setData(geojson);
-    }
-  }
-
-  async function addRoutes(selectedOrders: Order[]) {
-    console.log("add routes")
-    console.log(selectedOrders)
-    // Create an empty GeoJSON feature collection for drop-off locations
-    const deliveryPoints = turf.featureCollection([]);
-
-    // Initialize pointHopper as an empty object
-    const waypointRegistry: Record<string, Feature> = {};
+const MapComponent = forwardRef<Map | null, MapComponentProps>(
+  ({Warehouses, selectedWarehouse, setSelectedWarehouse }, ref) => {
     
-    // add each order to the waypointRegistry
-    for (const order of selectedOrders) {
-      const { name, address, location, packages } = order;
-      const delivery = new Delivery(name, address, location, packages);
-      const pt = turf.point([delivery.location[0], delivery.location[1]], {
-        orderTime: Date.now(),
-        key: Math.random()
-      });
-      deliveryPoints.features.push(pt);
-      waypointRegistry[pt.properties.key] = pt
-    }
-    // Add all the delivery points to the map
-    await addDeliveryWaypoint(null, waypointRegistry, truckLocation, warehouseLocation)
-    .then((response) => {
-      if (response) {
-        // Create a GeoJSON feature collection
-        const routeGeoJSON = turf.featureCollection([
-          turf.feature(response.trips[0].geometry)
-        ])
-        // Update the `route` source by getting the route source
-        // and setting the data equal to routeGeoJSON
-        const routeSource = mapInstance.current!.getSource('route');
-        if (routeSource && routeGeoJSON) {
-          setRouteGeoJSON(routeGeoJSON);
-          
-          if (routeGeoJSON) {
-            (routeSource as mapboxgl.GeoJSONSource).setData(routeGeoJSON);
-          }
-        }
-        updateDropoffs(deliveryPoints);
-      }
-    });
+  const mapContainer = useRef<HTMLDivElement | null>(null);
+  const mapInstance = useRef<Map | null>(null);
 
-    mapInstance.current!.addLayer({
-      id: 'dropoffs-symbol',
-      type: 'symbol',
-      source: {
-        data: deliveryPoints,
-        type: 'geojson'
-      },
-      layout: {
-        'icon-allow-overlap': true,
-        'icon-ignore-placement': true,
-        'icon-image': 'marker-15'
-      }
-    });
-  }
+  // Expose the Mapbox instance to the parent component via the ref
+  useImperativeHandle(ref, () => mapInstance.current!);
 
   useEffect(() => {
       if (mapContainer.current) {
         mapInstance.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/dark-v11',
-        center: truckLocation,
+        center: selectedWarehouse.location as LngLatLike,
         zoom: 14,
       });
     }
     if (mapInstance.current) {
       mapInstance.current.on('load', async () => {
         
+
+        // Display all orders on the map
         const delivery_json = await fetch(`${process.env.PUBLIC_URL}/orders.json`).then(r => r.json())
         // Add all the delivery points to the map
         for (const element of delivery_json.deliveries) {
           const { name, address, location, packages } = element;
-          const delivery = new Delivery(name, address, location, packages);
+          const delivery = new Order(name, address, location, packages);
         
           // Create a new popup
           const popup = new mapboxgl.Popup({
@@ -116,7 +50,6 @@ const MapComponent = forwardRef(({ mapContainer, truckLocation, warehouseLocatio
             closeButton: false,
           })
             .setHTML(`
-              
               <h3>${delivery.name}</h3>
               <p>${delivery.address}</p>`); // Set the popup's HTML content
         
@@ -140,48 +73,28 @@ const MapComponent = forwardRef(({ mapContainer, truckLocation, warehouseLocatio
           });
         }
 
-        // Add truck marker
-        const marker = document.createElement('div');
-        marker.className =
-          'w-5 h-5 border-2 border-white rounded-full bg-blue-600 pointer-events-none';
-
-        setTruckMarker(new mapboxgl.Marker(marker).setLngLat(truckLocation).addTo(mapInstance.current!));
-
-         // Add a circle layer for the warehouse
-         mapInstance.current!.addLayer({
-          id: 'warehouse',
-          type: 'circle',
-          source: {
-            data: warehouse,
-            type: 'geojson',
-          },
-          paint: {
-            'circle-radius': 20,
-            'circle-color': 'white',
-            'circle-stroke-color': '#3887be',
-            'circle-stroke-width': 3,
-          },
-        });
-
-        // Add a symbol layer for the warehouse
+        // add layer for dropoff points
         mapInstance.current!.addLayer({
-          id: 'warehouse-symbol',
+          id: 'dropoffs',
           type: 'symbol',
           source: {
-            data: warehouse,
-            type: 'geojson',
+            data: emptyFeatureCollection,
+            type: 'geojson'
           },
           layout: {
-            'icon-image': 'grocery',
-            'icon-size': 1.5,
-          },
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true,
+            'icon-image': 'marker-15'
+          }
         });
 
+        // Add a layer for the routes
         mapInstance.current!.addSource('route', {
           type: 'geojson',
           data: emptyFeatureCollection
         });
         
+        // add layer for route lines
         mapInstance.current!.addLayer(
           {
             id: 'routeline-active',
@@ -199,8 +112,7 @@ const MapComponent = forwardRef(({ mapContainer, truckLocation, warehouseLocatio
           'waterway-label'
         );
 
-
-        //add route lines
+        //add route directional arrows
         mapInstance.current!.addLayer(
           {
             id: 'routearrows',
@@ -222,66 +134,65 @@ const MapComponent = forwardRef(({ mapContainer, truckLocation, warehouseLocatio
           'waterway-label'
         );
 
-        // add dropoffs
-        // await mapInstance.current!.on('click', addWaypoints);
-        // mapInstance.current!.addLayer({
-        //   id: 'dropoffs-symbol',
-        //   type: 'symbol',
-        //   source: {
-        //     data: deliveryPoints,
-        //     type: 'geojson'
-        //   },
-        //   layout: {
-        //     'icon-allow-overlap': true,
-        //     'icon-ignore-placement': true,
-        //     'icon-image': 'marker-15'
-        //   }
-        // });
+        // Add a circle layer for the warehouse
+        mapInstance.current!.addLayer({
+          id: 'warehouse',
+          type: 'circle',
+          source: {
+            data: warehouses,
+            type: 'geojson',
+          },
+          paint: {
+            'circle-radius': 20,
+            'circle-color': 'white',
+            'circle-stroke-color': '#3887be',
+            'circle-stroke-width': 3,
+          },
+        });
+
+        // Add a symbol layer for the warehouse
+        mapInstance.current!.addLayer({
+          id: 'warehouse-symbol',
+          type: 'symbol',
+          source: {
+            data: warehouses,
+            type: 'geojson',
+          },
+          layout: {
+            'icon-image': 'grocery',
+            'icon-size': 1.5,
+          },
+        });
+        });
+      
+      // TODO - move this to parent component
+      // on click event check if the feature is a warehouse and set the selected warehouse
+      mapInstance.current.on('click', 'warehouse', (e) => {
+        const features = mapInstance.current!.queryRenderedFeatures(e.point, {
+          layers: ['warehouse'],
+        });
+        if (features.length > 0) {
+          const feature = features[0];
+          console.log('Warehouse clicked:', feature);
+          const warehouse = Warehouses.find((w) => w.id === feature.properties!.id);
+          if (warehouse) {
+            setSelectedWarehouse(warehouse);
+          }
+        }
       });
     }
 
 
 
     // Create a GeoJSON feature collection for the warehouse
-    const warehouse = turf.featureCollection([turf.point(warehouseLocation as [number, number])]);
+    const warehouses = turf.featureCollection(
+      Warehouses.map((warehouse: Warehouse) => turf.point(warehouse.location as [number, number] , { id: warehouse.id }))
+    );
     // Create an empty GeoJSON feature collection for drop-off locations
     // const deliveryPoints = turf.featureCollection([]);
     // Create an empty GeoJSON feature collection, which will be used as the data source for the route before users add any new data
     const emptyFeatureCollection = turf.featureCollection([]);
-    // Initialize pointHopper as an empty object
-    // const waypointRegistry: Record<string, Feature> = {};
 
-    // function updateDropoffs(geojson: FeatureCollection) {
-    //   const source = mapInstance.current!.getSource('dropoffs-symbol');
-    //   if (source) {
-    //     (source as mapboxgl.GeoJSONSource).setData(geojson);
-    //   }
-    // }
-    
-    // async function addWaypoints(event: mapboxgl.MapMouseEvent) {
-    //   // When the map is clicked, add a new drop off point
-    //   // and update the `dropoffs-symbol` layer
-    //   await addDeliveryWaypoint(event.lngLat, deliveryPoints, waypointRegistry, truckLocation, warehouseLocation, mapInstance)
-    //   .then((response) => {
-    //     if (response) {
-    //       // Create a GeoJSON feature collection
-    //       const routeGeoJSON = turf.featureCollection([
-    //         turf.feature(response.trips[0].geometry)
-    //       ])
-    //       // Update the `route` source by getting the route source
-    //       // and setting the data equal to routeGeoJSON
-    //       const routeSource = mapInstance.current!.getSource('route');
-    //       if (routeSource && routeGeoJSON) {
-    //         setRouteGeoJSON(routeGeoJSON);
-            
-    //         if (routeGeoJSON) {
-    //           (routeSource as mapboxgl.GeoJSONSource).setData(routeGeoJSON);
-    //         }
-    //       }
-    //       updateDropoffs(deliveryPoints);
-    //     }
-    //   });
-    // }
 
     return () => {
       if (mapInstance.current) {
@@ -292,40 +203,24 @@ const MapComponent = forwardRef(({ mapContainer, truckLocation, warehouseLocatio
 
 
     // Function to move the truck along the route
-    const moveTruck = () => {
-
-    if (!routeGeoJSON || !truckMarker) return;
-
-    const line = routeGeoJSON.features[0] as any;
-    const routeLength = turf.length(line); // Get the total length of the route in kilometers
-
-    // Calculate the new distance traveled
-    const newDistance = distanceTraveled + 0.1; // Move 0.1 km (100 meters) per click
-    if (newDistance > routeLength) {
-      console.log('Truck has reached the end of the route');
-      return;
+    const moveTrucks = () => {
+    if (!selectedWarehouse) return;
+    // loop through all the vehicles and move them along the route
+    for (const vehicle of selectedWarehouse.vehicles) {
+      vehicle.MoveAlongRoute();
     }
-
-    // Get the new position along the route
-    const newPosition = turf.along(line, newDistance);
-
-    // Update the truck marker position
-    const [lng, lat] = newPosition.geometry.coordinates;
-    truckMarker.setLngLat([lng, lat]);
-
-    // Update the distance traveled
-    setDistanceTraveled(newDistance);
   };
   
   return (
     <div>
       <div ref={mapContainer} className="absolute inset-0"></div>
       <button
-        onClick={moveTruck}
+        onClick={moveTrucks}
         className="absolute top-4 right-6 bg-blue-600 text-white px-4 py-2 rounded"
       >
         Move Truck
       </button>
+
     </div>
   );
 });

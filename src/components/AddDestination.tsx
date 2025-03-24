@@ -4,8 +4,9 @@ import * as turf from '@turf/turf';
 import { Feature, FeatureCollection } from 'geojson';
 import assembleQueryURL from './RouteQueryBuilder';
 
-export default async function addDeliveryWaypoint(coordinates: LngLat | null, waypointRegistry: Record<string, Feature>, truckLocation: LngLatLike, warehouseLocation: LngLatLike) {
-    
+export default async function addDeliveryWaypoint(coordinates: LngLat | null, DeliveryPoints: Record<string, Feature>, truckLocation: LngLatLike, warehouseLocation: LngLatLike) {
+    // returns the Route response from the Optimization API
+
     if (coordinates){
       // Store the clicked point as a new GeoJSON feature with
       // two properties: `orderTime` and `key`
@@ -13,11 +14,11 @@ export default async function addDeliveryWaypoint(coordinates: LngLat | null, wa
         orderTime: Date.now(),
         key: Math.random()
       });
-      waypointRegistry[pt.properties.key] = pt;
+      DeliveryPoints[pt.properties.key] = pt;
     }
     
     // Make a request to the Optimization API
-    const query = await fetch(assembleQueryURL(truckLocation,waypointRegistry,warehouseLocation), { method: 'GET' });
+    const query = await fetch(assembleQueryURL(truckLocation,DeliveryPoints,warehouseLocation), { method: 'GET' });
     const response = await query.json();
   
     // Create an alert for any requests that return an error

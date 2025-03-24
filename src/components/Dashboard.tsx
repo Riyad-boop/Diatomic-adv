@@ -5,13 +5,14 @@ import Order from '../types/Order';
 
 
 interface DasboardProps {
+    selectedWarehouse: number[];
     selectedOrders: Order[];
     setSelectedOrders: React.Dispatch<React.SetStateAction<Order[]>>
     setConfirmRoute: React.Dispatch<React.SetStateAction<boolean>>
   }
 
-export default function Dashboard({ selectedOrders, setSelectedOrders, setConfirmRoute}: DasboardProps) {
-    const warehouseLocation:[number, number]= [-1.9109365,52.504115];
+export default function Dashboard({ selectedWarehouse, selectedOrders, setSelectedOrders, setConfirmRoute}: DasboardProps) {
+    // const selectedWarehouse:[number, number]= [-1.9109365,52.504115];
     const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
     const [totalDistance, setTotalDistance] = useState<number>(0);
     const [totalWeight, setTotalWeight] = useState<number>(0);
@@ -22,7 +23,7 @@ export default function Dashboard({ selectedOrders, setSelectedOrders, setConfir
             const transformedOrders = data.deliveries.map((element: any) => {
                 const { name, address, location, packages } = element;
                 let order = new Order(name, address, location, packages);
-                order.setDistance(warehouseLocation);
+                order.setDistance(selectedWarehouse);
                 order.calculateTotalWeight();
                 return order;
             });
@@ -32,7 +33,7 @@ export default function Dashboard({ selectedOrders, setSelectedOrders, setConfir
             
         };
         fetchDeliveries();
-    }, []);
+    }, [selectedWarehouse]);
 
     // useffect to update the distance estimate
     useEffect(() => {
@@ -58,7 +59,7 @@ export default function Dashboard({ selectedOrders, setSelectedOrders, setConfir
             return;
         }
 
-        let currentLocation = warehouseLocation;
+        let currentLocation = selectedWarehouse;
         // sort the orders by distance to the warehouse
         let remainingOrders = [...selectedOrders].sort((a, b) => a.distance - b.distance)
         let distance = 0;
@@ -93,7 +94,7 @@ export default function Dashboard({ selectedOrders, setSelectedOrders, setConfir
         }
 
         // Return to the warehouse
-        distance += turf.distance(turf.point(currentLocation), turf.point(warehouseLocation));
+        distance += turf.distance(turf.point(currentLocation), turf.point(selectedWarehouse));
 
         setTotalDistance(distance);
     };
