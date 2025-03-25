@@ -67,7 +67,7 @@ const App: React.FC = () => {
     if (mapRef.current && confirmRoute && selectedWarehouse && selectedOrders.length > 0) {
       console.log("creating vehicle...");
       // create a vehicle for the selected warehouse
-      const vehicle = new DeliveryVehicle('1', selectedWarehouse.location, selectedOrders, mapRef.current);
+      const vehicle = new DeliveryVehicle(Math.random().toString(36).substr(2, 9), selectedWarehouse.location, selectedOrders, mapRef.current);
       addRoutes(vehicle);
       // add vehicle to the warehouse
       selectedWarehouse.addVehicle(vehicle);

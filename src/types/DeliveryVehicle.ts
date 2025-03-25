@@ -19,7 +19,6 @@ export default class DeliveryVehicle {
     route: FeatureCollection;
     deliveries: FeatureCollection;
     map: mapboxgl.Map;
-    mapMarker: mapboxgl.Marker;
     distanceTraveled: number = 0;
     
 
@@ -33,13 +32,32 @@ export default class DeliveryVehicle {
         }));
         this.map = map;
 
-        //create a marker for the truck
-        const marker = document.createElement('div');
-        marker.className =
-          'w-5 h-5 border-2 border-white rounded-full bg-blue-600 pointer-events-none';
-        this.mapMarker = new mapboxgl.Marker(marker).setLngLat([location[0], location[1]]).addTo(map);
-        
+        this.updateVehicleLocation(location);
     }
+
+    updateVehicleLocation(location: number[]) {
+        this.location = location;
+        // Add this vehicle to the vehicle layer GeoJSON source
+        const vehicleSourceId = 'vehicle';
+        const vehicleSymbolSourceId = 'vehicle-symbol';
+        let vehicleSource = this.map.getSource(vehicleSourceId) as mapboxgl.GeoJSONSource;
+
+        // Add this vehicle as a feature to the GeoJSON source
+        const vehicleFeature = turf.point(this.location, { id: this.id });
+        const currentData = vehicleSource._data as GeoJSON.FeatureCollection;
+
+        // replace the current data where vehicle id matches with the updated vehicle feature
+        const updatedFeatures = currentData.features.filter((feature) => feature.properties?.id !== this.id);
+        updatedFeatures.push(vehicleFeature);
+
+        const featureCollection = turf.featureCollection(updatedFeatures);
+
+        // update the vehicle layer
+        vehicleSource.setData(featureCollection);
+        // update the vehicle-symbol layer
+        (this.map.getSource(vehicleSymbolSourceId) as mapboxgl.GeoJSONSource).setData(featureCollection);
+    } 
+
 
     setRoute(route: FeatureCollection) {
         this.route = route;
@@ -51,7 +69,7 @@ export default class DeliveryVehicle {
 
     showRoute(){
         (this.map.getSource('route') as mapboxgl.GeoJSONSource).setData(this.route);
-        // show dropoffs
+        //TODO 25/03/2025 show dropoffs
         // (this.map.getSource('dropoffs-symbol') as mapboxgl.GeoJSONSource).setData(this.deliveries);
     }
 
@@ -91,7 +109,8 @@ export default class DeliveryVehicle {
         }
 
         // Update the truck marker position
-        const [lng, lat] = nextPos.geometry.coordinates;
-        this.mapMarker.setLngLat([lng, lat]);
+        if (nextPos.geometry.type === 'Point') {
+            this.updateVehicleLocation(nextPos.geometry.coordinates);
+        }
     }
 }

@@ -107,9 +107,70 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
           });
         }
 
+        // Add a circle layer for the warehouse
+        mapInstance.current!.addLayer({
+          id: 'warehouse',
+          type: 'circle',
+          source: {
+            data: warehouses,
+            type: 'geojson',
+          },
+          paint: {
+            'circle-radius': 20,
+            'circle-color': 'white',
+            'circle-stroke-color': '#3887be',
+            'circle-stroke-width': 3,
+          },
+        });
+
+        // Add a symbol layer for the warehouse
+        mapInstance.current!.addLayer({
+          id: 'warehouse-symbol',
+          type: 'symbol',
+          source: {
+            data: warehouses,
+            type: 'geojson',
+          },
+          layout: {
+            'icon-image': 'grocery',
+            'icon-size': 1.5,
+          },
+        });
+
         // add layer for dropoff points
         mapInstance.current!.addLayer({
-          id: 'dropoffs',
+          id: 'dropoff-points',
+          type: 'circle',
+          source: {
+            data: emptyFeatureCollection,
+            type: 'geojson'
+          },
+          paint: {
+            'circle-radius': 7,
+            'circle-color': '#38a169',
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 2
+          }
+        });
+
+        //add circle layer for vehicles
+        mapInstance.current!.addLayer({
+          id: 'vehicle',
+          type: 'circle',
+          source: {
+            data: emptyFeatureCollection,
+            type: 'geojson',
+          },
+          paint: {
+            'circle-radius': 20,
+            'circle-color': 'white',
+            'circle-stroke-color': '#3887be',
+            'circle-stroke-width': 2.5,
+          }
+        });
+        // add symbol layer for vehicles
+        mapInstance.current!.addLayer({
+          id: 'vehicle-symbol',
           type: 'symbol',
           source: {
             data: emptyFeatureCollection,
@@ -118,7 +179,8 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
           layout: {
             'icon-allow-overlap': true,
             'icon-ignore-placement': true,
-            'icon-image': 'marker-15'
+            'icon-image': 'car',
+            'icon-size': 3,
           }
         });
 
@@ -167,37 +229,7 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
           },
           'waterway-label'
         );
-
-        // Add a circle layer for the warehouse
-        mapInstance.current!.addLayer({
-          id: 'warehouse',
-          type: 'circle',
-          source: {
-            data: warehouses,
-            type: 'geojson',
-          },
-          paint: {
-            'circle-radius': 20,
-            'circle-color': 'white',
-            'circle-stroke-color': '#3887be',
-            'circle-stroke-width': 3,
-          },
-        });
-
-        // Add a symbol layer for the warehouse
-        mapInstance.current!.addLayer({
-          id: 'warehouse-symbol',
-          type: 'symbol',
-          source: {
-            data: warehouses,
-            type: 'geojson',
-          },
-          layout: {
-            'icon-image': 'grocery',
-            'icon-size': 1.5,
-          },
-        });
-        });
+      });
       
       // TODO - move this to parent component
       // on click event check if the feature is a warehouse and set the selected warehouse
@@ -237,6 +269,24 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
       
           return updatedWarehouses;
         });
+      });
+
+      // on click of a vehicle marker, show the route and select the parent warehouse
+      mapInstance.current.on('click', 'vehicle', (e) => {
+        const features = mapInstance.current!.queryRenderedFeatures(e.point, {
+          layers: ['vehicle'],
+        });
+        if (features.length > 0) {
+          const feature = features[0];
+          console.log('Vehicle clicked:', feature);
+          const warehouse = WarehouseRef.current.find((w) => w.vehicles.some((v) => v.id === feature.properties!.id));
+          if (warehouse) {
+            setSelectedWarehouse(warehouse);
+          }
+          // show the route
+          const vehicle = warehouse!.vehicles.find((v) => v.id === feature.properties!.id);
+          vehicle!.showRoute();
+        }
       });
     }
 
