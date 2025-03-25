@@ -11,7 +11,11 @@ import assembleQueryURL from './components/RouteQueryBuilder';
 
 const App: React.FC = () => {
   const mapRef = useRef<Map | null>(null)
-  const Warehouses: Warehouse[] = [new Warehouse('A', [-1.9109365,52.504115]), new Warehouse('B', [-1.8496529862234183,52.46825020597893]), new Warehouse('C', [-1.936793262719931,52.46958617249447])];
+  const [Warehouses, setWarehouses] = useState<Warehouse[]>(
+    [new Warehouse('1', [-1.9109365,52.504115]), 
+    new Warehouse('2', [-1.8496529862234183,52.46825020597893]), 
+    new Warehouse('3', [-1.936793262719931,52.46958617249447])]
+  );
   const [selectedOrders, setSelectedOrders] = useState<Order[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse>(Warehouses[0]);
   const [confirmRoute, setConfirmRoute] = useState<boolean>(false);
@@ -67,6 +71,8 @@ const App: React.FC = () => {
       addRoutes(vehicle);
       // add vehicle to the warehouse
       selectedWarehouse.addVehicle(vehicle);
+      // update the warehouse array with the selected warehouse
+      setWarehouses(Warehouses.map((w) => w.id === selectedWarehouse.id ? selectedWarehouse : w));
     }
   }, [confirmRoute]);
 
@@ -86,6 +92,7 @@ const App: React.FC = () => {
       <MapComponent
         ref={mapRef} // Pass the ref to the MapComponent
         Warehouses={Warehouses}
+        setWarehouses={setWarehouses}
         selectedWarehouse={selectedWarehouse}
         setSelectedWarehouse={setSelectedWarehouse}
       />

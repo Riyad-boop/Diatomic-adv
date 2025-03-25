@@ -28,11 +28,12 @@ export default function Dashboard({ selectedWarehouse, selectedOrders, setSelect
                 return order;
             });
             // sort the orders by distance
-            //const sortedOrders = transformedOrders.sort((a:any, b:any) => a.distance - b.distance);
-            setPendingOrders(transformedOrders); // Set the transformed array of Order objects
+            const sortedOrders = transformedOrders.sort((a:any, b:any) => a.distance - b.distance);
+            setPendingOrders(sortedOrders); // Set the transformed array of Order objects
             
         };
         fetchDeliveries();
+        setConfirmRoute(false);
     }, [selectedWarehouse]);
 
     // useffect to update the distance estimate
@@ -119,7 +120,7 @@ export default function Dashboard({ selectedWarehouse, selectedOrders, setSelect
         </p>
 
         <button
-            onClick={() => setConfirmRoute(true)}
+            onClick={() => {setConfirmRoute(true)}}
             className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
         >
             Confirm Route & Select ADV

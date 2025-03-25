@@ -11,18 +11,53 @@ mapboxgl.accessToken = 'pk.eyJ1Ijoicml5YWQtayIsImEiOiJja3cwdHNkaGkweXRoMm9udGUwN
 
 interface MapComponentProps {
   Warehouses: Warehouse[];
+  setWarehouses: React.Dispatch<React.SetStateAction<Warehouse[]>>;
   selectedWarehouse: Warehouse;
   setSelectedWarehouse: React.Dispatch<React.SetStateAction<Warehouse>>;
 }
 
 const MapComponent = forwardRef<Map | null, MapComponentProps>(
-  ({Warehouses, selectedWarehouse, setSelectedWarehouse }, ref) => {
+  ({Warehouses,setWarehouses, selectedWarehouse, setSelectedWarehouse }, ref) => {
     
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<Map | null>(null);
-
+  const [addWarehouseMode, setAddWarehouseMode] = useState<boolean>(false);
+  // Track the state with a ref since event listeners need to access the latest state
+  const addWarehouseModeRef = useRef(addWarehouseMode);
+  const [warehouseId, setWarehouseId] = useState<number>(4);
+  const addWarehouseIdRef = useRef(warehouseId);
+  const WarehouseRef = useRef(Warehouses);
+      
   // Expose the Mapbox instance to the parent component via the ref
   useImperativeHandle(ref, () => mapInstance.current!);
+
+  useEffect(() => {
+    addWarehouseModeRef.current = addWarehouseMode;
+  }, [addWarehouseMode]);
+
+  useEffect(() => {
+    addWarehouseIdRef.current = warehouseId;
+  }, [warehouseId]);
+
+  useEffect(() => {
+    WarehouseRef.current = Warehouses;
+  }, [Warehouses]);
+
+  //whenever the selected warehouse changes, show a popup
+  useEffect(() => {
+    if (mapInstance.current) {
+      new mapboxgl.Popup()
+        .setLngLat(selectedWarehouse.location as LngLatLike)
+        .setHTML(`
+          <h3> Currently selected warehouse ID: ${selectedWarehouse.id}</h3>
+          <p>Location: ${selectedWarehouse.location}</p>
+          `)
+
+        .addTo(mapInstance.current);
+    }
+  }, [selectedWarehouse]);
+  
+
 
   useEffect(() => {
       if (mapContainer.current) {
@@ -36,7 +71,6 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
     if (mapInstance.current) {
       mapInstance.current.on('load', async () => {
         
-
         // Display all orders on the map
         const delivery_json = await fetch(`${process.env.PUBLIC_URL}/orders.json`).then(r => r.json())
         // Add all the delivery points to the map
@@ -58,7 +92,7 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
           markerElement.className = 'w-5 h-5 border-2 border-white rounded-full bg-red-600 pointer-events-auto';
         
           // Create a new marker
-          const marker = new mapboxgl.Marker(markerElement)
+          new mapboxgl.Marker(markerElement)
             .setLngLat([delivery.location[0], delivery.location[1]]) // Set the marker's position
             .addTo(mapInstance.current!); // Add the marker to the map
         
@@ -174,15 +208,37 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
         if (features.length > 0) {
           const feature = features[0];
           console.log('Warehouse clicked:', feature);
-          const warehouse = Warehouses.find((w) => w.id === feature.properties!.id);
+          const warehouse = WarehouseRef.current.find((w) => w.id === feature.properties!.id);
           if (warehouse) {
             setSelectedWarehouse(warehouse);
           }
         }
       });
+
+      // TODO - move this to parent component
+      // on click event check if the feature is a warehouse and set the selected warehouse
+      mapInstance.current.on('click', (e) => {
+        if (!addWarehouseModeRef.current) return;
+        const newWarehouse = new Warehouse(addWarehouseIdRef.current.toString(), [e.lngLat.lng, e.lngLat.lat]);
+        setWarehouseId(addWarehouseIdRef.current! + 1);
+        setWarehouses((prevWarehouses) => {
+          const updatedWarehouses = [...prevWarehouses, newWarehouse];
+          console.log('New warehouse added:', updatedWarehouses);
+      
+          // update the layers
+          const warehouses_features = turf.featureCollection(
+              updatedWarehouses.map((warehouse: Warehouse) =>
+                  turf.point(warehouse.location as [number, number], { id: warehouse.id })
+              )
+          );
+      
+          (mapInstance.current!.getSource('warehouse') as mapboxgl.GeoJSONSource).setData(warehouses_features);
+          (mapInstance.current!.getSource('warehouse-symbol') as mapboxgl.GeoJSONSource).setData(warehouses_features);
+      
+          return updatedWarehouses;
+        });
+      });
     }
-
-
 
     // Create a GeoJSON feature collection for the warehouse
     const warehouses = turf.featureCollection(
@@ -204,10 +260,12 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
 
     // Function to move the truck along the route
     const moveTrucks = () => {
-    if (!selectedWarehouse) return;
+    if (!Warehouses) return;
     // loop through all the vehicles and move them along the route
-    for (const vehicle of selectedWarehouse.vehicles) {
-      vehicle.MoveAlongRoute();
+    for (const warehouse of Warehouses) {
+      for (const vehicle of warehouse.vehicles){
+        vehicle.MoveAlongRoute();
+      }
     }
   };
   
@@ -218,7 +276,13 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
         onClick={moveTrucks}
         className="absolute top-4 right-6 bg-blue-600 text-white px-4 py-2 rounded"
       >
-        Move Truck
+        Move Trucks
+      </button>
+      <button
+        onClick={() => setAddWarehouseMode(!addWarehouseMode)}
+        className="absolute top-20 right-6 bg-blue-600 text-white px-4 py-2 rounded"
+      >
+        {addWarehouseMode ? 'Cancel Add Warehouse' : 'Add Warehouse'}
       </button>
 
     </div>
