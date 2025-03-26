@@ -1,5 +1,6 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, forwardRef } from 'react';
+import mapboxgl, {Map} from 'mapbox-gl';
 import * as turf from '@turf/turf';
 import Order from '../types/Order';
 
@@ -11,11 +12,13 @@ interface DasboardProps {
     setConfirmRoute: React.Dispatch<React.SetStateAction<boolean>>
   }
 
-export default function Dashboard({ selectedWarehouse, selectedOrders, setSelectedOrders, setConfirmRoute}: DasboardProps) {
-    // const selectedWarehouse:[number, number]= [-1.9109365,52.504115];
+const Dashboard = forwardRef<Map | null, DasboardProps>((props, mapRef) => {
+    const { selectedWarehouse, selectedOrders, setSelectedOrders, setConfirmRoute } = props;
     const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
     const [totalDistance, setTotalDistance] = useState<number>(0);
     const [totalWeight, setTotalWeight] = useState<number>(0);
+
+
 
     useEffect(() => {
         const fetchDeliveries = async () => {
@@ -40,12 +43,35 @@ export default function Dashboard({ selectedWarehouse, selectedOrders, setSelect
     useEffect(() => {
         computeDistanceEstimate();
         computeTotalDeliveryWeight();
-        // plot points on the map
-        plotPoints();
     }, [selectedOrders]);
 
     // Plot points on the map
-    function plotPoints() {}
+    function plotPoints() {
+        // plot the selected orders on the dropoff-points layer in green dots
+        //plot the rest of the orders in red dots
+        const deliveryPoints = selectedOrders.map((order) => {
+            return turf.point(order.location, { order });
+        });
+        const remainingPoints = pendingOrders.filter((order) => !selectedOrders.includes(order)).map((order) => {
+            return turf.point(order.location, { order });
+        });
+
+        const dropoffPointsCollection = turf.featureCollection(deliveryPoints);
+        const remainingPointsCollection = turf.featureCollection(remainingPoints);
+
+        // Add the dropoff points to the map
+        if (mapRef && 'current' in mapRef && mapRef.current) {
+            try{
+                (mapRef.current.getSource('dropoff-points') as mapboxgl.GeoJSONSource).setData(dropoffPointsCollection);
+                (mapRef.current.getSource('remaining-dropoff-points')as mapboxgl.GeoJSONSource).setData(remainingPointsCollection);
+            }
+            catch(error){
+                console.log("Error plotting points on the map", error);
+            }
+        }
+        
+       
+    }
 
 
     function computeTotalDeliveryWeight() {
@@ -148,6 +174,8 @@ export default function Dashboard({ selectedWarehouse, selectedOrders, setSelect
                             // Return a new array rather than modifying the original selectedOrders array.
                             setSelectedOrders(selectedOrders.filter((o) => o !== order));
                         }
+                        // plot points on the map
+                        plotPoints();
                     }}
                 />
                 <label htmlFor={`order-${index}`} className="flex-grow">
@@ -164,4 +192,6 @@ export default function Dashboard({ selectedWarehouse, selectedOrders, setSelect
         </div>
       </div>
     );
-  };
+  });
+
+export default Dashboard;

@@ -71,41 +71,41 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
     if (mapInstance.current) {
       mapInstance.current.on('load', async () => {
         
-        // Display all orders on the map
-        const delivery_json = await fetch(`${process.env.PUBLIC_URL}/orders.json`).then(r => r.json())
-        // Add all the delivery points to the map
-        for (const element of delivery_json.deliveries) {
-          const { name, address, location, packages } = element;
-          const delivery = new Order(name, address, location, packages);
+        // // Display all orders on the map
+        // const delivery_json = await fetch(`${process.env.PUBLIC_URL}/orders.json`).then(r => r.json())
+        // // Add all the delivery points to the map
+        // for (const element of delivery_json.deliveries) {
+        //   const { name, address, location, packages } = element;
+        //   const delivery = new Order(name, address, location, packages);
         
-          // Create a new popup
-          const popup = new mapboxgl.Popup({
-            offset: 25,
-            closeButton: false,
-          })
-            .setHTML(`
-              <h3>${delivery.name}</h3>
-              <p>${delivery.address}</p>`); // Set the popup's HTML content
+        //   // Create a new popup
+        //   const popup = new mapboxgl.Popup({
+        //     offset: 25,
+        //     closeButton: false,
+        //   })
+        //     .setHTML(`
+        //       <h3>${delivery.name}</h3>
+        //       <p>${delivery.address}</p>`); // Set the popup's HTML content
         
-          // Create a new marker element
-          const markerElement = document.createElement('div');
-          markerElement.className = 'w-5 h-5 border-2 border-white rounded-full bg-red-600 pointer-events-auto';
+        //   // Create a new marker element
+        //   const markerElement = document.createElement('div');
+        //   markerElement.className = 'w-5 h-5 border-2 border-white rounded-full bg-red-600 pointer-events-auto';
         
-          // Create a new marker
-          new mapboxgl.Marker(markerElement)
-            .setLngLat([delivery.location[0], delivery.location[1]]) // Set the marker's position
-            .addTo(mapInstance.current!); // Add the marker to the map
+        //   // Create a new marker
+        //   new mapboxgl.Marker(markerElement)
+        //     .setLngLat([delivery.location[0], delivery.location[1]]) // Set the marker's position
+        //     .addTo(mapInstance.current!); // Add the marker to the map
         
-          // Add hover events to show/hide the popup
-          markerElement.addEventListener('mouseenter', () => {
-            popup.addTo(mapInstance.current!); // Show the popup on hover
-            popup.setLngLat([delivery.location[0], delivery.location[1]]);
-          });
+        //   // Add hover events to show/hide the popup
+        //   markerElement.addEventListener('mouseenter', () => {
+        //     popup.addTo(mapInstance.current!); // Show the popup on hover
+        //     popup.setLngLat([delivery.location[0], delivery.location[1]]);
+        //   });
         
-          markerElement.addEventListener('mouseleave', () => {
-            popup.remove(); // Hide the popup when the mouse leaves
-          });
-        }
+        //   markerElement.addEventListener('mouseleave', () => {
+        //     popup.remove(); // Hide the popup when the mouse leaves
+        //   });
+        // }
 
         // Add a circle layer for the warehouse
         mapInstance.current!.addLayer({
@@ -148,6 +148,22 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
           paint: {
             'circle-radius': 7,
             'circle-color': '#38a169',
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 2
+          }
+        });
+
+         // add layer for remaining order points
+         mapInstance.current!.addLayer({
+          id: 'remaining-dropoff-points',
+          type: 'circle',
+          source: {
+            data: emptyFeatureCollection,
+            type: 'geojson'
+          },
+          paint: {
+            'circle-radius': 7,
+            'circle-color': '#e53e3e',
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2
           }

@@ -20,6 +20,9 @@ export default class DeliveryVehicle {
     deliveries: FeatureCollection;
     map: mapboxgl.Map;
     distanceTraveled: number = 0;
+    deliveryInProgress: boolean = false;
+    deliveryWaitingTime: number = 0;
+    //TODO add battery level which will be decremented as the vehicle moves along the route and total weight of the packages per movement tick.
     
 
     constructor(id: string, location: number[],deliveries: Order[], map: mapboxgl.Map) {
@@ -69,8 +72,9 @@ export default class DeliveryVehicle {
 
     showRoute(){
         (this.map.getSource('route') as mapboxgl.GeoJSONSource).setData(this.route);
-        //TODO 25/03/2025 show dropoffs
-        // (this.map.getSource('dropoffs-symbol') as mapboxgl.GeoJSONSource).setData(this.deliveries);
+        // hide remaining-dropoff-points source and show dropoff-points source
+        (this.map.getSource('dropoff-points') as mapboxgl.GeoJSONSource).setData(this.deliveries);
+        (this.map.getSource('remaining-dropoff-points') as mapboxgl.GeoJSONSource).setData(turf.featureCollection([]));
     }
 
     DeliverPackage(index: number) {
@@ -83,6 +87,14 @@ export default class DeliveryVehicle {
     MoveAlongRoute() {
         // Move the ADV along the route
         if (!this.route || !this.location) return;
+
+        if (this.deliveryInProgress) {
+            this.deliveryWaitingTime -= 1;
+            if (this.deliveryWaitingTime === 0) {
+                this.deliveryInProgress = false;
+            }
+            return;
+        }
 
         const line = this.route.features[0] as any;
         const routeLength = turf.length(line); // Get the total length of the route in kilometers
@@ -103,6 +115,10 @@ export default class DeliveryVehicle {
             if (delivery.geometry.type === 'Point') {
                 const distanceToDelivery = turf.distance(nextPos, turf.point(delivery.geometry.coordinates), { units: 'kilometers' });
                 if (distanceToDelivery < 0.1) {
+                    this.deliveryInProgress = true;
+                    // make a random wait time between 1 and 5 
+                    this.deliveryWaitingTime = Math.floor(Math.random() * 5) + 1;
+                    console.log('Waiting for', this.deliveryWaitingTime, 'seconds');
                     this.DeliverPackage(i);
                 }
             }

@@ -87,7 +87,12 @@ const App: React.FC = () => {
   
   return (
     <div className="h-screen w-screen">
-      <Dashboard selectedWarehouse={selectedWarehouse.location} selectedOrders={selectedOrders} setSelectedOrders={setSelectedOrders} setConfirmRoute={setConfirmRoute}/>
+      <Dashboard 
+      ref={mapRef}
+      selectedWarehouse={selectedWarehouse.location} 
+      selectedOrders={selectedOrders} 
+      setSelectedOrders={setSelectedOrders} 
+      setConfirmRoute={setConfirmRoute}/>
 
       <MapComponent
         ref={mapRef} // Pass the ref to the MapComponent
