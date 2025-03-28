@@ -4,6 +4,9 @@ import mapboxgl, {Map} from 'mapbox-gl';
 import * as turf from '@turf/turf';
 import Order from '../types/Order';
 
+//TODO when the user submits an order add it to the warehouse order array and remove it from the list of pending orders
+//TODO when user selects warehouse show all the selected orders from this warehouse in green.
+//TODO when user selects a car show the vehcile info (location, battery level, total weight of the packages, total distance traveled, delivery in progress, delivery waiting time)
 
 interface DasboardProps {
     selectedWarehouse: number[];
@@ -43,6 +46,8 @@ const Dashboard = forwardRef<Map | null, DasboardProps>((props, mapRef) => {
     useEffect(() => {
         computeDistanceEstimate();
         computeTotalDeliveryWeight();
+        // plot points on the map
+        plotPoints();
     }, [selectedOrders]);
 
     // Plot points on the map
@@ -159,6 +164,7 @@ const Dashboard = forwardRef<Map | null, DasboardProps>((props, mapRef) => {
                     type="checkbox"
                     className="mr-2"
                     id={`order-${index}`}
+                    checked={selectedOrders.includes(order)} // Check if the order is in the selectedOrders array
                     onChange={(e) => {
                         if (e.target.checked) {
                             // Add the order to the selectedOrders array if the checkbox is checked and the size is less than 10
@@ -174,8 +180,7 @@ const Dashboard = forwardRef<Map | null, DasboardProps>((props, mapRef) => {
                             // Return a new array rather than modifying the original selectedOrders array.
                             setSelectedOrders(selectedOrders.filter((o) => o !== order));
                         }
-                        // plot points on the map
-                        plotPoints();
+;
                     }}
                 />
                 <label htmlFor={`order-${index}`} className="flex-grow">
