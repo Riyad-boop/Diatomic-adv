@@ -100,7 +100,7 @@ const App: React.FC = () => {
     }
   }, [confirmRoute]);
 
-  //TODO REMOVE THIS
+  //Reorder the orders whenever a new warehouse is selected
   useEffect(() => {
     if (selectedWarehouse) {
       setSelectedOrders([]);

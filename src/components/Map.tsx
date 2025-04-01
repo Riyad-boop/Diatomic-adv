@@ -54,7 +54,6 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
           <h3> Currently selected warehouse ID: ${selectedWarehouse.id}</h3>
           <p>Location: ${selectedWarehouse.location}</p>
           `)
-
         .addTo(mapInstance.current);
     }
   }, [selectedWarehouse]);
@@ -340,7 +339,9 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
           // show the route
           const vehicle = warehouse!.vehicles.find((v : DeliveryVehicle ) => v.id === feature.properties!.id);
           vehicle!.showRoute();
+          vehicle!.showPopup(mapInstance.current!);
           setSelectedVehicle(vehicle!);
+
         }
       });
     }

@@ -20,9 +20,12 @@ export default class DeliveryVehicle {
     deliveries: FeatureCollection;
     completedDeliveries: FeatureCollection = turf.featureCollection([]);
     map: mapboxgl.Map;
-    distanceTraveled: number = 0;
     deliveryInProgress: boolean = false;
     deliveryWaitingTime: number = 0;
+    distanceTraveled: number = 0;
+    totalDistance: number = 0;
+    batteryLevel: number = 100;
+    currentWeight: number = 0;
     //TODO add battery level which will be decremented as the vehicle moves along the route and total weight of the packages per movement tick.
     
 
@@ -37,6 +40,11 @@ export default class DeliveryVehicle {
         this.map = map;
 
         this.updateVehicleLocation(location);
+        this.updateCurrentWeight();
+    }
+
+    updateCurrentWeight(){
+        this.currentWeight = this.deliveries.features.reduce((total, delivery) => total + delivery.properties?.order.orderWeight, 0);
     }
 
     updateVehicleLocation(location: number[]) {
@@ -96,6 +104,10 @@ export default class DeliveryVehicle {
             this.deliveryWaitingTime -= 1;
             if (this.deliveryWaitingTime === 0) {
                 this.deliveryInProgress = false;
+                // reset the distance traveled
+                this.distanceTraveled = 0;
+                // update the current weight
+                this.updateCurrentWeight();
             }
             return;
         }
@@ -103,15 +115,16 @@ export default class DeliveryVehicle {
         const line = this.route.features[0] as any;
         const routeLength = turf.length(line); // Get the total length of the route in kilometers
 
-        this.distanceTraveled += 0.1; // Move 0.1 km (100 meters) per click
+        this.totalDistance += 0.1; // Move 0.1 km (100 meters) per click
+        this.distanceTraveled += 0.1;
     
-        if (this.distanceTraveled > routeLength) {
+        if (this.totalDistance > routeLength) {
           console.log('Truck has reached the end of the route');
           return;
         }
 
         // Get the new position along the route
-        const nextPos = turf.along(line, this.distanceTraveled);
+        const nextPos = turf.along(line, this.totalDistance);
 
         // if nextPos is <= a certain distance from the next delivery point, deliver the package
         for (let i = 0; i < this.deliveries.features.length; i++) {
@@ -132,5 +145,31 @@ export default class DeliveryVehicle {
         if (nextPos.geometry.type === 'Point') {
             this.updateVehicleLocation(nextPos.geometry.coordinates);
         }
+
+        // Update the battery level
+        this.updateBatteryLevel();
+
+    }
+
+    updateBatteryLevel(){
+        // Update the battery level of the truck based on the distance traveled and the current weight
+        // The battery level should decrease as the truck moves along the route
+        // The battery level should decrease faster as the weight of the packages increases
+        this.batteryLevel -= (this.distanceTraveled * 0.5) + (this.currentWeight * 0.05);
+    }
+
+
+    showPopup(map: mapboxgl.Map){
+        // Create a popup for the truck showing the id, packages left to deliver, and the distance traveled, and the battery level
+        new mapboxgl.Popup()
+        .setLngLat(this.location as LngLatLike)
+        .setHTML(`<h3>Truck ID: ${this.id}</h3>
+        <p>Deliveries left: ${this.deliveries.features.length}</p>
+        <p>Distance traveled: ${this.totalDistance.toFixed(2)} km</p>
+        <p>Delivery in progress: ${this.deliveryInProgress ? 'Yes' : 'No'}</p>
+        <p>Delivery waiting time: ${this.deliveryWaitingTime} ticks</p>
+        <p>Current weight: ${this.currentWeight.toFixed(2)} kg</p>
+        <p>Battery level: ${this.batteryLevel.toFixed(2)}%</p>`)
+        .addTo(map);
     }
 }
