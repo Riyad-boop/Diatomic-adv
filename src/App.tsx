@@ -1,5 +1,6 @@
 import React, {useEffect,useState,useRef} from 'react';
 import MapComponent from './components/Map';
+// import RoutePlanner from './components/RoutePlanner';
 import Dashboard from './components/Dashboard';
 import mapboxgl, { Map, LngLatLike} from 'mapbox-gl';
 import Order from './types/Order';
@@ -8,6 +9,7 @@ import DeliveryVehicle from './types/DeliveryVehicle';
 import * as turf from '@turf/turf';
 import { Feature, FeatureCollection } from 'geojson';
 import assembleQueryURL from './components/RouteQueryBuilder';
+import WarehouseStats from './components/WarehouseStats';
 
 const App: React.FC = () => {
   const mapRef = useRef<Map | null>(null)
@@ -130,9 +132,13 @@ const App: React.FC = () => {
   
   return (
     <div className="h-screen w-screen">
+
+      {/* When a warehouse is clicked show the stats page */}
+      {/* {selectedWarehouse && <WarehouseStats warehouse={selectedWarehouse}/>} */}
+
       <Dashboard 
       ref={mapRef}
-      selectedWarehouse={selectedWarehouse.location} 
+      selectedWarehouse={selectedWarehouse} 
       pendingOrders={pendingOrders}
       selectedOrders={selectedOrders} 
       setSelectedOrders={setSelectedOrders} 
