@@ -20,6 +20,7 @@ const App: React.FC = () => {
   );
   const [selectedOrders, setSelectedOrders] = useState<Order[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse>(Warehouses[0]);
+  const [warehouseVersion, setWarehouseVersion] = useState(0); // Track changes with a version number
   const [selectedVehicle, setSelectedVehicle] = useState<DeliveryVehicle | null>(null);
   const [confirmRoute, setConfirmRoute] = useState<boolean>(false);
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
@@ -71,7 +72,7 @@ const App: React.FC = () => {
     // for each order calculate the distance from the selected warehouse
     const transformedOrders = data.map((order) => {
       let newOrder = new Order(order.name, order.address, order.location, order.packages);
-      newOrder.setDistance(selectedWarehouse.location);
+      newOrder.computeWarehouseDistance(selectedWarehouse.location);
       newOrder.calculateTotalWeight();
       return newOrder;
     });
@@ -91,7 +92,7 @@ const App: React.FC = () => {
       // create a vehicle for the selected warehouse
       console.log("creating vehicle...");
       // create a vehicle for the selected warehouse
-      const vehicle = new DeliveryVehicle(Math.random().toString(36).substr(2, 9), selectedWarehouse.location, selectedOrders, mapRef.current);
+      const vehicle = new DeliveryVehicle(Math.random().toString(36).substr(2, 9), selectedWarehouse.location, selectedOrders,selectedWarehouse, mapRef.current);
       addRoutes(vehicle);
       // set the selected vehicle to the vehicle
       setSelectedVehicle(vehicle);
@@ -116,8 +117,17 @@ const App: React.FC = () => {
     if (pendingOrders.length > 0 ){
       sortOrders(pendingOrders);
     }
+
+    selectedWarehouse.onChange = () => {
+      setWarehouseVersion(prev => prev + 1); // Increment version to trigger re-render
+    };
+    return () => {
+        selectedWarehouse.onChange = undefined; // Clean up on unmount
+    };
   }
   , [selectedWarehouse]);
+
+  
 
 
   // on load fetch the available orders

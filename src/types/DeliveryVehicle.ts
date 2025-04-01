@@ -8,9 +8,10 @@
 */
 
 import * as turf from '@turf/turf';
-import { FeatureCollection} from 'geojson';
+import { Feature, FeatureCollection} from 'geojson';
 import Order from './Order';
 import mapboxgl, { Map, LngLatLike} from 'mapbox-gl';
+import Warehouse from './Warehouse';
 
 
 export default class DeliveryVehicle {
@@ -22,14 +23,16 @@ export default class DeliveryVehicle {
     map: mapboxgl.Map;
     deliveryInProgress: boolean = false;
     deliveryWaitingTime: number = 0;
+    deliveredItemIndex: number = 0;
     distanceTraveled: number = 0;
     totalDistance: number = 0;
     batteryLevel: number = 100;
     currentWeight: number = 0;
+    warehouse: Warehouse;
     //TODO add battery level which will be decremented as the vehicle moves along the route and total weight of the packages per movement tick.
     
 
-    constructor(id: string, location: number[],deliveries: Order[], map: mapboxgl.Map) {
+    constructor(id: string, location: number[], deliveries: Order[], warehouse:Warehouse, map: mapboxgl.Map) {
         this.id = id;
         this.location = location;
         this.route = turf.featureCollection([]);
@@ -37,6 +40,7 @@ export default class DeliveryVehicle {
         this.deliveries = turf.featureCollection(deliveries.map((order) => {
             return turf.point(order.location, { order });
         }));
+        this.warehouse = warehouse;
         this.map = map;
 
         this.updateVehicleLocation(location);
@@ -44,6 +48,7 @@ export default class DeliveryVehicle {
     }
 
     updateCurrentWeight(){
+        console.log('Updating current weight', this.deliveries.features);
         this.currentWeight = this.deliveries.features.reduce((total, delivery) => total + delivery.properties?.order.orderWeight, 0);
     }
 
@@ -87,12 +92,18 @@ export default class DeliveryVehicle {
         (this.map.getSource('completed-dropoff-points') as mapboxgl.GeoJSONSource).setData(this.completedDeliveries);
     }
 
-    DeliverPackage(index: number) {
-        // Deliver the package
-        console.log('Delivering package');
+    DeliverPackage(index: number){ 
         // remove the next delivery point from the deliveries feature collection and add it to the completed deliveries feature collection
         this.completedDeliveries.features.push(this.deliveries.features[index]);
         this.deliveries.features.splice(index, 1);
+        // get the last delivery point and mark the order as completed
+        this.warehouse.markOrdersAsCompleted(this.completedDeliveries.features[this.completedDeliveries.features.length - 1].properties?.order);
+        // reset the delivery in progress flag
+        this.deliveryInProgress = false;
+        // reset the distance traveled
+        this.distanceTraveled = 0;
+        // update the current weight
+        this.updateCurrentWeight();
     }
 
 
@@ -103,25 +114,21 @@ export default class DeliveryVehicle {
         if (this.deliveryInProgress) {
             this.deliveryWaitingTime -= 1;
             if (this.deliveryWaitingTime === 0) {
-                this.deliveryInProgress = false;
-                // reset the distance traveled
-                this.distanceTraveled = 0;
-                // update the current weight
-                this.updateCurrentWeight();
+                this.DeliverPackage(this.deliveredItemIndex);
             }
             return;
         }
 
         const line = this.route.features[0] as any;
         const routeLength = turf.length(line); // Get the total length of the route in kilometers
-
-        this.totalDistance += 0.1; // Move 0.1 km (100 meters) per click
-        this.distanceTraveled += 0.1;
     
         if (this.totalDistance > routeLength) {
           console.log('Truck has reached the end of the route');
           return;
         }
+
+        this.totalDistance += 0.1; // Move 0.1 km (100 meters) per click
+        this.distanceTraveled += 0.1;
 
         // Get the new position along the route
         const nextPos = turf.along(line, this.totalDistance);
@@ -135,8 +142,9 @@ export default class DeliveryVehicle {
                     this.deliveryInProgress = true;
                     // make a random wait time between 1 and 5 
                     this.deliveryWaitingTime = Math.floor(Math.random() * 5) + 1;
-                    console.log('Waiting for', this.deliveryWaitingTime, 'seconds');
-                    this.DeliverPackage(i);
+                    console.log('Waiting for', this.deliveryWaitingTime, 'ticks');
+                    this.deliveredItemIndex = i;
+                    break;
                 }
             }
         }

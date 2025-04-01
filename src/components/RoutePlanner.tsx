@@ -4,8 +4,6 @@ import mapboxgl, {Map} from 'mapbox-gl';
 import * as turf from '@turf/turf';
 import Order from '../types/Order';
 
-//TODO when user selects a car show the vehcile info (location, battery level, total weight of the packages, total distance traveled, delivery in progress, delivery waiting time)
-
 interface RoutePlannerProps {
     warehouseLocation: number[];
     selectedOrders: Order[];
@@ -15,7 +13,7 @@ interface RoutePlannerProps {
   }
 
 const RoutePlanner = forwardRef<Map | null, RoutePlannerProps>((props, mapRef) => {
-    const { warehouseLocation: selectedWarehouse, selectedOrders,pendingOrders, setSelectedOrders, setConfirmRoute } = props;
+    const { warehouseLocation, selectedOrders,pendingOrders, setSelectedOrders, setConfirmRoute } = props;
     const [totalDistance, setTotalDistance] = useState<number>(0);
     const [totalWeight, setTotalWeight] = useState<number>(0);
 
@@ -68,7 +66,7 @@ const RoutePlanner = forwardRef<Map | null, RoutePlannerProps>((props, mapRef) =
             return;
         }
 
-        let currentLocation = selectedWarehouse;
+        let currentLocation = warehouseLocation;
         // sort the orders by distance to the warehouse
         let remainingOrders = [...selectedOrders].sort((a, b) => a.distance - b.distance)
         let distance = 0;
@@ -103,7 +101,7 @@ const RoutePlanner = forwardRef<Map | null, RoutePlannerProps>((props, mapRef) =
         }
 
         // Return to the warehouse
-        distance += turf.distance(turf.point(currentLocation), turf.point(selectedWarehouse));
+        distance += turf.distance(turf.point(currentLocation), turf.point(warehouseLocation));
 
         setTotalDistance(distance);
     };

@@ -16,8 +16,12 @@ class Order {
         this.location = location
         this.packages = packages;
       }
-
-    setDistance(endPosition: number[]) {
+    
+    setDistance(distance: number) {
+        this.distance = distance;
+    }
+    
+    computeWarehouseDistance(endPosition: number[]) {
         // Calculate the distance from the warehouse to this.location point
         const warehouse = turf.point(endPosition);
         const options: { units: Units } = { units: 'kilometers' };

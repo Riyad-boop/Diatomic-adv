@@ -11,8 +11,7 @@ class Warehouse {
     location: number[]
     orders: Order[] = [];
     vehicles: Array<DeliveryVehicle> = [];
-    // add orders to the warehouse
-    // add adv to the warehouse
+    onChange?: () => void; // General callback to notify React components of changes
     // move add routes function here
 
     constructor(id: string, location: number[]) {
@@ -28,21 +27,14 @@ class Warehouse {
         this.orders = orders;
     }
 
-    // update completed orders
-    updateOrders(){
-        // iterate all vehicles and check if they have completed any deliveries
-        // if they have completed any deliveries, update the orders
-        this.vehicles.forEach(vehicle => {
-            if (vehicle.completedDeliveries.features.length > 0){
-                // update the orders
-                vehicle.completedDeliveries.features.forEach((delivery) => {
-                    const order = delivery.properties?.order;
-                    if (order){
-                        order.pending = false;
-                    }
-                });
+    markOrdersAsCompleted(completedOrder : Order){
+        console.log("Marking order as completed", completedOrder);
+        this.orders.forEach(order => {
+            if (order.name === completedOrder.name){
+                order.pending = false;
             }
         });
+        
     }
 
     showWarehouseOrders(map: mapboxgl.Map){

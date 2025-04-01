@@ -25,10 +25,9 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<Map | null>(null);
   const [addWarehouseMode, setAddWarehouseMode] = useState<boolean>(false);
-  // const [selectedVehicle, setSelectedVehicle] = useState<DeliveryVehicle | null>(null);
   // Track the state with a ref since event listeners need to access the latest state
   const addWarehouseModeRef = useRef(addWarehouseMode);
-  const [warehouseId, setWarehouseId] = useState<number>(4);
+  const [warehouseId, setWarehouseId] = useState<number>(4); // used to track the id of the new warehouse
   const addWarehouseIdRef = useRef(warehouseId);
   const WarehouseRef = useRef(Warehouses);
       
@@ -72,44 +71,8 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
       });
     }
     if (mapInstance.current) {
-      mapInstance.current.on('load', async () => {
-        
-        // // Display all orders on the map
-        // const delivery_json = await fetch(`${process.env.PUBLIC_URL}/orders.json`).then(r => r.json())
-        // // Add all the delivery points to the map
-        // for (const element of delivery_json.deliveries) {
-        //   const { name, address, location, packages } = element;
-        //   const delivery = new Order(name, address, location, packages);
-        
-        //   // Create a new popup
-        //   const popup = new mapboxgl.Popup({
-        //     offset: 25,
-        //     closeButton: false,
-        //   })
-        //     .setHTML(`
-        //       <h3>${delivery.name}</h3>
-        //       <p>${delivery.address}</p>`); // Set the popup's HTML content
-        
-        //   // Create a new marker element
-        //   const markerElement = document.createElement('div');
-        //   markerElement.className = 'w-5 h-5 border-2 border-white rounded-full bg-red-600 pointer-events-auto';
-        
-        //   // Create a new marker
-        //   new mapboxgl.Marker(markerElement)
-        //     .setLngLat([delivery.location[0], delivery.location[1]]) // Set the marker's position
-        //     .addTo(mapInstance.current!); // Add the marker to the map
-        
-        //   // Add hover events to show/hide the popup
-        //   markerElement.addEventListener('mouseenter', () => {
-        //     popup.addTo(mapInstance.current!); // Show the popup on hover
-        //     popup.setLngLat([delivery.location[0], delivery.location[1]]);
-        //   });
-        
-        //   markerElement.addEventListener('mouseleave', () => {
-        //     popup.remove(); // Hide the popup when the mouse leaves
-        //   });
-        // }
-
+        mapInstance.current.on('load', async () => {
+      
         // Add a circle layer for the warehouse
         mapInstance.current!.addLayer({
           id: 'warehouse',
@@ -376,9 +339,15 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
         if (selectedVehicle && vehicle.id == selectedVehicle!.id){
           vehicle.showRoute();
         }
+        // if no vehicle is selected, but a warehouse is selected, show the orders for the selected warehouse
         else if (selectedWarehouse && warehouse.id == selectedWarehouse.id){
           warehouse.showWarehouseOrders(mapInstance.current!);
-          warehouse.updateOrders();
+        }
+
+        if (selectedWarehouse){
+          if (selectedWarehouse.onChange) {
+            selectedWarehouse.onChange();
+          }
         }
       }
     }
@@ -388,7 +357,7 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
     <div>
       <div ref={mapContainer} className="absolute inset-0"></div>
       <button
-        onClick={moveTrucks}
+        onClick={() => moveTrucks()}
         className="absolute top-4 right-6 bg-blue-600 text-white px-4 py-2 rounded"
       >
         Move Trucks
