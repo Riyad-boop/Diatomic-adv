@@ -19,6 +19,7 @@ const App: React.FC = () => {
   const [selectedOrders, setSelectedOrders] = useState<Order[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse>(Warehouses[0]);
   const [confirmRoute, setConfirmRoute] = useState<boolean>(false);
+  const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   
   async function addRoutes(selectedVehicle: DeliveryVehicle) {
       console.log("adding routes to vehicle...", selectedOrders);
@@ -56,15 +57,35 @@ const App: React.FC = () => {
           // update vehicle route
           selectedVehicle.setRoute(turf.featureCollection([turf.feature(response.trips[0].geometry)]));
           selectedVehicle.showRoute();
-          setConfirmRoute(true);
+          setConfirmRoute(false);
           // return response;
       }
       // Add all the delivery points to the map
-
     }
+
+  
+  function sortOrders(data: Order[]) {
+    // for each order calculate the distance from the selected warehouse
+    const transformedOrders = data.map((order) => {
+      let newOrder = new Order(order.name, order.address, order.location, order.packages);
+      newOrder.setDistance(selectedWarehouse.location);
+      newOrder.calculateTotalWeight();
+      return newOrder;
+    });
+    // sort the orders by distance
+    const sortedOrders = transformedOrders.sort((a:any, b:any) => a.distance - b.distance);
+    return sortedOrders;
+  }
 
   useEffect(() => {
     if (mapRef.current && confirmRoute && selectedWarehouse && selectedOrders.length > 0) {
+      // update warehouse's list of orders
+      selectedWarehouse.setOrders([...selectedWarehouse.orders, ...selectedOrders]);
+      // remove the selected orders from the pending orders
+      const remainingOrders = pendingOrders.filter((order) => !selectedOrders.includes(order));
+      setPendingOrders(remainingOrders);
+
+      // create a vehicle for the selected warehouse
       console.log("creating vehicle...");
       // create a vehicle for the selected warehouse
       const vehicle = new DeliveryVehicle(Math.random().toString(36).substr(2, 9), selectedWarehouse.location, selectedOrders, mapRef.current);
@@ -73,6 +94,9 @@ const App: React.FC = () => {
       selectedWarehouse.addVehicle(vehicle);
       // update the warehouse array with the selected warehouse
       setWarehouses(Warehouses.map((w) => w.id === selectedWarehouse.id ? selectedWarehouse : w));
+
+      // reset the selected orders
+      setSelectedOrders([]);
     }
   }, [confirmRoute]);
 
@@ -82,14 +106,29 @@ const App: React.FC = () => {
       setSelectedOrders([]);
     }
     console.log("updated selected warehouse", selectedWarehouse);
+    if (pendingOrders.length > 0 ){
+      sortOrders(pendingOrders);
+    }
   }
   , [selectedWarehouse]);
+
+
+  // on load fetch the available orders
+  useEffect(() => {
+    const fetchDeliveries = async () => {
+        const data = await fetch(`${process.env.PUBLIC_URL}/orders.json`).then(r => r.json());
+        setPendingOrders(sortOrders(data.deliveries)); // Set the transformed array of Order objects
+    };
+    fetchDeliveries();
+  }, []);
+
   
   return (
     <div className="h-screen w-screen">
       <Dashboard 
       ref={mapRef}
       selectedWarehouse={selectedWarehouse.location} 
+      pendingOrders={pendingOrders}
       selectedOrders={selectedOrders} 
       setSelectedOrders={setSelectedOrders} 
       setConfirmRoute={setConfirmRoute}/>

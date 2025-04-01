@@ -1,6 +1,6 @@
 // import React, { useEffect, useRef, useState,useImperativeHandle, forwardRef  } from 'react';
 import mapboxgl, { Map, LngLatLike} from 'mapbox-gl';
-// import * as turf from '@turf/turf';
+import * as turf from '@turf/turf';
 // import { Feature, FeatureCollection } from 'geojson';
 // import Delivery from '../types/Order';
 import Order from './Order';
@@ -26,6 +26,18 @@ class Warehouse {
 
     setOrders(orders: Order[]) {
         this.orders = orders;
+    }
+
+    showWarehouseOrders(map: mapboxgl.Map){
+        // set route layer to empty
+        (map.getSource('route') as mapboxgl.GeoJSONSource).setData(turf.featureCollection([]));
+        // set completed dropoff points to empty
+        (map.getSource('completed-dropoff-points') as mapboxgl.GeoJSONSource).setData(turf.featureCollection([]));
+        //create a GeoJSON feature collection for orders
+        const pendingOrders = turf.featureCollection(this.orders.map((order) => {
+            return turf.point(order.location, { order });
+        }));
+        (map.getSource('dropoff-points') as mapboxgl.GeoJSONSource).setData(pendingOrders);
     }
 
     setVehicles(vehicles: Array<DeliveryVehicle>) {

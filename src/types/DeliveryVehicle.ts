@@ -18,6 +18,7 @@ export default class DeliveryVehicle {
     location: number[];
     route: FeatureCollection;
     deliveries: FeatureCollection;
+    completedDeliveries: FeatureCollection = turf.featureCollection([]);
     map: mapboxgl.Map;
     distanceTraveled: number = 0;
     deliveryInProgress: boolean = false;
@@ -75,11 +76,14 @@ export default class DeliveryVehicle {
         // hide remaining-dropoff-points source and show dropoff-points source
         (this.map.getSource('dropoff-points') as mapboxgl.GeoJSONSource).setData(this.deliveries);
         (this.map.getSource('remaining-dropoff-points') as mapboxgl.GeoJSONSource).setData(turf.featureCollection([]));
+        (this.map.getSource('completed-dropoff-points') as mapboxgl.GeoJSONSource).setData(this.completedDeliveries);
     }
 
     DeliverPackage(index: number) {
         // Deliver the package
         console.log('Delivering package');
+        // remove the next delivery point from the deliveries feature collection and add it to the completed deliveries feature collection
+        this.completedDeliveries.features.push(this.deliveries.features[index]);
         this.deliveries.features.splice(index, 1);
     }
 

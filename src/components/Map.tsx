@@ -5,6 +5,7 @@ import { Feature, FeatureCollection } from 'geojson';
 import addDeliveryWaypoint from './AddDestination';
 import Order from '../types/Order';
 import Warehouse from '../types/Warehouse';
+import DeliveryVehicle from '../types/DeliveryVehicle';
 
 
 mapboxgl.accessToken = 'pk.eyJ1Ijoicml5YWQtayIsImEiOiJja3cwdHNkaGkweXRoMm9udGUwNTN6aHc3In0.z-H0YXy5-vtH0AdTCyPsLQ';
@@ -22,6 +23,7 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<Map | null>(null);
   const [addWarehouseMode, setAddWarehouseMode] = useState<boolean>(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<DeliveryVehicle | null>(null);
   // Track the state with a ref since event listeners need to access the latest state
   const addWarehouseModeRef = useRef(addWarehouseMode);
   const [warehouseId, setWarehouseId] = useState<number>(4);
@@ -137,6 +139,22 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
           },
         });
 
+        // add layer for selected dropoff points
+        mapInstance.current!.addLayer({
+          id: 'selected-dropoff-points',
+          type: 'circle',
+          source: {
+            data: emptyFeatureCollection,
+            type: 'geojson'
+          },
+          paint: {
+            'circle-radius': 7,
+            'circle-color': '#007bff', // blue
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 2
+          }
+        });
+
         // add layer for dropoff points
         mapInstance.current!.addLayer({
           id: 'dropoff-points',
@@ -147,7 +165,7 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
           },
           paint: {
             'circle-radius': 7,
-            'circle-color': '#38a169',
+            'circle-color': '#f1c40f', // yellow
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2
           }
@@ -163,7 +181,23 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
           },
           paint: {
             'circle-radius': 7,
-            'circle-color': '#e53e3e',
+            'circle-color': '#e53e3e', // red
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 2
+          }
+        });
+
+        // completed order layer
+        mapInstance.current!.addLayer({
+          id: 'completed-dropoff-points',
+          type: 'circle',
+          source: {
+            data: emptyFeatureCollection,
+            type: 'geojson'
+          },
+          paint: {
+            'circle-radius': 7,
+            'circle-color': '#38a169', // green
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2
           }
@@ -259,6 +293,10 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
           const warehouse = WarehouseRef.current.find((w) => w.id === feature.properties!.id);
           if (warehouse) {
             setSelectedWarehouse(warehouse);
+            setSelectedVehicle(null);
+            // show all the orders assigned to the warehouse
+            warehouse.showWarehouseOrders(mapInstance.current!);
+            
           }
         }
       });
@@ -295,13 +333,14 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
         if (features.length > 0) {
           const feature = features[0];
           console.log('Vehicle clicked:', feature);
-          const warehouse = WarehouseRef.current.find((w) => w.vehicles.some((v) => v.id === feature.properties!.id));
+          const warehouse = WarehouseRef.current.find((w) => w.vehicles.some((v : DeliveryVehicle) => v.id === feature.properties!.id));
           if (warehouse) {
             setSelectedWarehouse(warehouse);
           }
           // show the route
-          const vehicle = warehouse!.vehicles.find((v) => v.id === feature.properties!.id);
+          const vehicle = warehouse!.vehicles.find((v : DeliveryVehicle ) => v.id === feature.properties!.id);
           vehicle!.showRoute();
+          setSelectedVehicle(vehicle!);
         }
       });
     }
@@ -330,6 +369,9 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
     // loop through all the vehicles and move them along the route
     for (const warehouse of Warehouses) {
       for (const vehicle of warehouse.vehicles){
+        if (selectedVehicle && vehicle.id == selectedVehicle!.id){
+          vehicle.showRoute();
+        }
         vehicle.MoveAlongRoute();
       }
     }

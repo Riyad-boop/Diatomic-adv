@@ -4,43 +4,20 @@ import mapboxgl, {Map} from 'mapbox-gl';
 import * as turf from '@turf/turf';
 import Order from '../types/Order';
 
-//TODO when the user submits an order add it to the warehouse order array and remove it from the list of pending orders
-//TODO when user selects warehouse show all the selected orders from this warehouse in green.
 //TODO when user selects a car show the vehcile info (location, battery level, total weight of the packages, total distance traveled, delivery in progress, delivery waiting time)
 
 interface DasboardProps {
     selectedWarehouse: number[];
     selectedOrders: Order[];
+    pendingOrders: Order[];
     setSelectedOrders: React.Dispatch<React.SetStateAction<Order[]>>
     setConfirmRoute: React.Dispatch<React.SetStateAction<boolean>>
   }
 
 const Dashboard = forwardRef<Map | null, DasboardProps>((props, mapRef) => {
-    const { selectedWarehouse, selectedOrders, setSelectedOrders, setConfirmRoute } = props;
-    const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
+    const { selectedWarehouse, selectedOrders,pendingOrders, setSelectedOrders, setConfirmRoute } = props;
     const [totalDistance, setTotalDistance] = useState<number>(0);
     const [totalWeight, setTotalWeight] = useState<number>(0);
-
-
-
-    useEffect(() => {
-        const fetchDeliveries = async () => {
-            const data = await fetch(`${process.env.PUBLIC_URL}/orders.json`).then(r => r.json());
-            const transformedOrders = data.deliveries.map((element: any) => {
-                const { name, address, location, packages } = element;
-                let order = new Order(name, address, location, packages);
-                order.setDistance(selectedWarehouse);
-                order.calculateTotalWeight();
-                return order;
-            });
-            // sort the orders by distance
-            const sortedOrders = transformedOrders.sort((a:any, b:any) => a.distance - b.distance);
-            setPendingOrders(sortedOrders); // Set the transformed array of Order objects
-            
-        };
-        fetchDeliveries();
-        setConfirmRoute(false);
-    }, [selectedWarehouse]);
 
     // useffect to update the distance estimate
     useEffect(() => {
@@ -67,7 +44,7 @@ const Dashboard = forwardRef<Map | null, DasboardProps>((props, mapRef) => {
         // Add the dropoff points to the map
         if (mapRef && 'current' in mapRef && mapRef.current) {
             try{
-                (mapRef.current.getSource('dropoff-points') as mapboxgl.GeoJSONSource).setData(dropoffPointsCollection);
+                (mapRef.current.getSource('selected-dropoff-points') as mapboxgl.GeoJSONSource).setData(dropoffPointsCollection);
                 (mapRef.current.getSource('remaining-dropoff-points')as mapboxgl.GeoJSONSource).setData(remainingPointsCollection);
             }
             catch(error){
