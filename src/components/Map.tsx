@@ -15,15 +15,17 @@ interface MapComponentProps {
   setWarehouses: React.Dispatch<React.SetStateAction<Warehouse[]>>;
   selectedWarehouse: Warehouse;
   setSelectedWarehouse: React.Dispatch<React.SetStateAction<Warehouse>>;
+  selectedVehicle: DeliveryVehicle | null;
+  setSelectedVehicle: React.Dispatch<React.SetStateAction<DeliveryVehicle | null>>;
 }
 
 const MapComponent = forwardRef<Map | null, MapComponentProps>(
-  ({Warehouses,setWarehouses, selectedWarehouse, setSelectedWarehouse }, ref) => {
+  ({Warehouses,setWarehouses, selectedWarehouse, setSelectedWarehouse, selectedVehicle, setSelectedVehicle }, ref) => {
     
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<Map | null>(null);
   const [addWarehouseMode, setAddWarehouseMode] = useState<boolean>(false);
-  const [selectedVehicle, setSelectedVehicle] = useState<DeliveryVehicle | null>(null);
+  // const [selectedVehicle, setSelectedVehicle] = useState<DeliveryVehicle | null>(null);
   // Track the state with a ref since event listeners need to access the latest state
   const addWarehouseModeRef = useRef(addWarehouseMode);
   const [warehouseId, setWarehouseId] = useState<number>(4);
@@ -370,10 +372,14 @@ const MapComponent = forwardRef<Map | null, MapComponentProps>(
     // loop through all the vehicles and move them along the route
     for (const warehouse of Warehouses) {
       for (const vehicle of warehouse.vehicles){
+        vehicle.MoveAlongRoute();
         if (selectedVehicle && vehicle.id == selectedVehicle!.id){
           vehicle.showRoute();
         }
-        vehicle.MoveAlongRoute();
+        else if (selectedWarehouse && warehouse.id == selectedWarehouse.id){
+          warehouse.showWarehouseOrders(mapInstance.current!);
+          warehouse.updateOrders();
+        }
       }
     }
   };

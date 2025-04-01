@@ -28,16 +28,41 @@ class Warehouse {
         this.orders = orders;
     }
 
+    // update completed orders
+    updateOrders(){
+        // iterate all vehicles and check if they have completed any deliveries
+        // if they have completed any deliveries, update the orders
+        this.vehicles.forEach(vehicle => {
+            if (vehicle.completedDeliveries.features.length > 0){
+                // update the orders
+                vehicle.completedDeliveries.features.forEach((delivery) => {
+                    const order = delivery.properties?.order;
+                    if (order){
+                        order.pending = false;
+                    }
+                });
+            }
+        });
+    }
+
     showWarehouseOrders(map: mapboxgl.Map){
         // set route layer to empty
         (map.getSource('route') as mapboxgl.GeoJSONSource).setData(turf.featureCollection([]));
         // set completed dropoff points to empty
         (map.getSource('completed-dropoff-points') as mapboxgl.GeoJSONSource).setData(turf.featureCollection([]));
         //create a GeoJSON feature collection for orders
-        const pendingOrders = turf.featureCollection(this.orders.map((order) => {
-            return turf.point(order.location, { order });
-        }));
+        const pendingOrders = turf.featureCollection(this.orders
+            .filter(order => order.pending && order.location) // Filter out invalid orders
+            .map(order => turf.point(order.location, { order }))
+        );
         (map.getSource('dropoff-points') as mapboxgl.GeoJSONSource).setData(pendingOrders);
+
+        // create a GeoJSON feature collection for completed orders
+        const completedOrders = turf.featureCollection(this.orders
+            .filter(order => !order.pending && order.location) // Filter out invalid orders
+            .map(order => turf.point(order.location, { order }))
+        );
+        (map.getSource('completed-dropoff-points') as mapboxgl.GeoJSONSource).setData(completedOrders);
     }
 
     setVehicles(vehicles: Array<DeliveryVehicle>) {

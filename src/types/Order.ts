@@ -8,6 +8,7 @@ class Order {
     packages: {[key: string]: any};
     distance: number = 0;
     orderWeight: number = 0;
+    pending: boolean = true;
   
      constructor(name: string, address:string , location: number[], packages: {[key: string]: any}) {
         this.name = name;

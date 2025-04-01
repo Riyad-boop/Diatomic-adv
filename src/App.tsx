@@ -18,10 +18,11 @@ const App: React.FC = () => {
   );
   const [selectedOrders, setSelectedOrders] = useState<Order[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse>(Warehouses[0]);
+  const [selectedVehicle, setSelectedVehicle] = useState<DeliveryVehicle | null>(null);
   const [confirmRoute, setConfirmRoute] = useState<boolean>(false);
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   
-  async function addRoutes(selectedVehicle: DeliveryVehicle) {
+  async function addRoutes(activeVehicle: DeliveryVehicle) {
       console.log("adding routes to vehicle...", selectedOrders);
       // Create an empty GeoJSON feature collection for drop-off locations
       const waypointRegistry = turf.featureCollection([]);
@@ -41,7 +42,7 @@ const App: React.FC = () => {
         DeliveryPoints[pt.properties.key] = pt
       }
 
-      const query = await fetch(assembleQueryURL([selectedVehicle.location[0],selectedVehicle.location[1]],DeliveryPoints,selectedWarehouse.toLngLat()), { method: 'GET' });
+      const query = await fetch(assembleQueryURL([activeVehicle.location[0],activeVehicle.location[1]],DeliveryPoints,selectedWarehouse.toLngLat()), { method: 'GET' });
       const response = await query.json();
     
       // Create an alert for any requests that return an error
@@ -55,8 +56,8 @@ const App: React.FC = () => {
       }
       else{
           // update vehicle route
-          selectedVehicle.setRoute(turf.featureCollection([turf.feature(response.trips[0].geometry)]));
-          selectedVehicle.showRoute();
+          activeVehicle.setRoute(turf.featureCollection([turf.feature(response.trips[0].geometry)]));
+          activeVehicle.showRoute();
           setConfirmRoute(false);
           // return response;
       }
@@ -90,11 +91,15 @@ const App: React.FC = () => {
       // create a vehicle for the selected warehouse
       const vehicle = new DeliveryVehicle(Math.random().toString(36).substr(2, 9), selectedWarehouse.location, selectedOrders, mapRef.current);
       addRoutes(vehicle);
+      // set the selected vehicle to the vehicle
+      setSelectedVehicle(vehicle);
+      
       // add vehicle to the warehouse
       selectedWarehouse.addVehicle(vehicle);
       // update the warehouse array with the selected warehouse
       setWarehouses(Warehouses.map((w) => w.id === selectedWarehouse.id ? selectedWarehouse : w));
-
+      // set selected vehicle to the vehicle
+      setSelectedWarehouse(selectedWarehouse);
       // reset the selected orders
       setSelectedOrders([]);
     }
@@ -139,6 +144,8 @@ const App: React.FC = () => {
         setWarehouses={setWarehouses}
         selectedWarehouse={selectedWarehouse}
         setSelectedWarehouse={setSelectedWarehouse}
+        selectedVehicle={selectedVehicle}
+        setSelectedVehicle={setSelectedVehicle}
       />
      
     </div>
