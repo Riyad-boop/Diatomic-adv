@@ -115,7 +115,7 @@ const App: React.FC = () => {
     }
     console.log("updated selected warehouse", selectedWarehouse);
     if (pendingOrders.length > 0 ){
-      sortOrders(pendingOrders);
+      setPendingOrders(sortOrders(pendingOrders));
     }
 
     selectedWarehouse.onChange = () => {
@@ -142,9 +142,6 @@ const App: React.FC = () => {
   
   return (
     <div className="h-screen w-screen">
-
-      {/* When a warehouse is clicked show the stats page */}
-      {/* {selectedWarehouse && <WarehouseStats warehouse={selectedWarehouse}/>} */}
 
       <Dashboard 
       ref={mapRef}

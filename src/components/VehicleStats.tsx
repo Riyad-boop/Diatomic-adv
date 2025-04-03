@@ -26,7 +26,7 @@ export default function VehicleStats(props: { warehouse: Warehouse }) {
     };
 
     return (
-        <div>
+        <div className=''>
             {props.warehouse.vehicles.map((vehicle) => {
                 const allOrders = [
                     ...vehicle.deliveries.features,
@@ -63,8 +63,8 @@ export default function VehicleStats(props: { warehouse: Warehouse }) {
                                         ⚡ {vehicle.batteryLevel.toFixed(0)}%
                                     </div>
                                 </div>
-                                <div>Distance Traveled: {vehicle.totalDistance.toFixed(2)} km</div>
-                                <div>Weight: {vehicle.currentWeight.toFixed(3)} kg</div>
+                                <div>Distance Traveled ↔️: {vehicle.totalDistance.toFixed(2)} km</div>
+                                <div>Weight🏗️: {vehicle.currentWeight.toFixed(3)} kg</div>
                                 <button
                                     className="cursor-pointer font-bold mt-2"
                                     onClick={() => toggleVehicle(`${vehicle.id}-allOrders`)}
@@ -99,15 +99,9 @@ export default function VehicleStats(props: { warehouse: Warehouse }) {
                                                     </div>
                                                     {openOrders[order.name] && (
                                                         <div className="ml-4">
-                                                            <div>Weight: {order.orderWeight}</div>
+                                                            <div>Weight 🏗️: {order.orderWeight.toFixed(3)} kg</div>
                                                             <div>
                                                                 Location: {order.location.join(', ')}
-                                                            </div>
-                                                            <div>
-                                                                Status:{' '}
-                                                                {order.pending
-                                                                    ? 'Pending'
-                                                                    : 'Delivered'}
                                                             </div>
                                                         </div>
                                                     )}

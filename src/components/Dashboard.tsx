@@ -23,7 +23,7 @@ const Dashboard = forwardRef<Map | null, DasboardProps>((props, mapRef) => {
       <div
         className="h-screen w-1/3 fixed top-0 left-0 bg-gray-800 bg-opacity-60  
         hover:bg-opacity-100 hover:shadow-lg hover:bg-gray-900
-        text-white p-4 z-10 overflow-hidden"
+        text-white p-4 z-10 overflow-y-auto"
         style={{ pointerEvents: 'auto' }} // Ensures interactivity
       >
         <WarehouseStats warehouse={selectedWarehouse} />
